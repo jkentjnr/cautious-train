@@ -117,7 +117,9 @@ send_job_dispatch() {
     log "  Target repo: $target_repo"
     log "  Branch: $branch"
     log "  Modified files: $(echo "$modified_files" | jq -r '.[]' | tr '\n' ' ')"
-    
+
+    log "Create Payload..."
+
     # Create payload for the GitHub workflow
     local payload=$(jq -n \
         --arg job_key "$job_key" \
