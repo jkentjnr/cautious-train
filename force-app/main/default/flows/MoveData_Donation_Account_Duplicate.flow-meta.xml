@@ -182,7 +182,7 @@
             <targetReference>Has_Salesforce_Key</targetReference>
         </connector>
     </start>
-    <status>Active</status>
+    <status>Draft</status>
     <variables>
         <name>Break</name>
         <dataType>Boolean</dataType>
