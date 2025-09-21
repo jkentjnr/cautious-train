@@ -1,0 +1,20 @@
+{
+  "docs": {
+    "repository": "https://github.com/jkentjnr/curly-octo-system.git",
+    "branch": "main"
+  },
+  "prompts": {
+    "flow": {
+      "env": "PROMPT_FLOW",
+      "description": "Flow Documentation"
+    }
+  },
+  "jobs": [
+    {
+      "key": "flow-commerce-account-key",
+      "type": "flow",
+      "input": ["force-app/main/default/flows/MoveData_Commerce_Account_Key.flow-meta.xml"],
+      "documentation": ["flows-accounts/account-platform-key-flow.md"]
+    }
+  ]
+}
