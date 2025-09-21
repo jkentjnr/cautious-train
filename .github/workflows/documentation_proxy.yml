@@ -1,4 +1,4 @@
-name: Documentation Proxy
+name: documentation
 on:
   push:
     branches:

@@ -1,4 +1,4 @@
-name: Flow Documentation
+name: documentation.flow
 
 run-name: >-
   [${{ github.event.client_payload.job_key }}] Flow Documentation
