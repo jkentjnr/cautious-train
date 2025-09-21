@@ -128,7 +128,9 @@ send_job_dispatch() {
             modified_files: $modified_files,
             branch: $branch
         }')
-    
+
+    log "Payload for job $job_key: $payload"
+
     # Send repository dispatch
     if gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
