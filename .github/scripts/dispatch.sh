@@ -75,14 +75,21 @@ validate_environment() {
     fi
 }
 
-# Get target repository info from documentation.json
+# Get current repository info
 get_target_repo_info() {
-    local repo_url=$(jq -r '.docs.repository // empty' "$DOCUMENTATION_CONFIG")
-    local branch=$(jq -r '.docs.branch // "main"' "$DOCUMENTATION_CONFIG")
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        error "Not in a git repository"
+        error "Please run this script from within a git repository"
+        exit 1
+    fi
+    
+    # Get the remote origin URL
+    local repo_url=$(git remote get-url origin 2>/dev/null)
     
     if [ -z "$repo_url" ]; then
-        error "No target repository found in $DOCUMENTATION_CONFIG"
-        error "Please add 'docs.repository' field"
+        error "No origin remote found"
+        error "Please ensure your repository has an origin remote configured"
         exit 1
     fi
     
@@ -91,7 +98,7 @@ get_target_repo_info() {
     
     if [ -z "$repo_path" ] || [[ ! "$repo_path" =~ ^[^/]+/[^/]+$ ]]; then
         error "Invalid repository URL: $repo_url"
-        error "Expected format: https://github.com/owner/repo or https://github.com/owner/repo.git"
+        error "Expected GitHub repository format: https://github.com/owner/repo or git@github.com:owner/repo.git"
         exit 1
     fi
     
@@ -107,7 +114,6 @@ send_job_dispatch() {
     local job_key=$(echo "$job_data" | jq -r '.job_key')
     local job_type=$(echo "$job_data" | jq -r '.job_type')
     local modified_files=$(echo "$job_data" | jq -c '.modified_files')
-    local branch=$(echo "$job_data" | jq -r '.git_context.branch // "unknown"')
     
     # Create event type
     local event_type="update-documentation-${job_type}"
@@ -115,7 +121,6 @@ send_job_dispatch() {
     log "Sending repository dispatch for job: $job_key"
     log "  Event type: $event_type"
     log "  Target repo: $target_repo"
-    log "  Branch: $branch"
     log "  Modified files: $(echo "$modified_files" | jq -r '.[]' | tr '\n' ' ')"
 
     log "Create Payload..."
@@ -124,11 +129,9 @@ send_job_dispatch() {
     local payload=$(jq -n \
         --arg job_key "$job_key" \
         --argjson modified_files "$modified_files" \
-        --arg branch "$branch" \
         '{
             job_key: $job_key,
-            modified_files: $modified_files,
-            branch: $branch
+            modified_files: $modified_files
         }')
 
     # Send repository dispatch
@@ -162,7 +165,7 @@ send_job_dispatch() {
     log "Exit code: $gh_exit_code"
     
     if [ $gh_exit_code -eq 0 ]; then
-        success "Repository dispatch sent for job: $job_key (branch: $branch)"
+        success "Repository dispatch sent for job: $job_key"
         return 0
     else
         error "Failed to send repository dispatch for job: $job_key"
