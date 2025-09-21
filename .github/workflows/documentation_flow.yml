@@ -1,0 +1,48 @@
+name: Flow Documentation
+
+run-name: >-
+  [${{ github.event.client_payload.job_key }}] Flow Documentation
+
+on:
+  repository_dispatch:
+    types: [update-documentation-flow]
+  workflow_dispatch:
+    inputs:
+      job_key:
+        description: 'Job Key to process'
+        required: true
+        type: string
+      modified_files:
+        description: 'Modified Files (Comma-Separated List)'
+        required: true
+        type: string
+
+jobs:
+  update-documentation-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output Parameters
+        run: |
+          echo "Updating documentation for flow: ${{ github.event.client_payload.job_key || inputs.job_key }}"
+          echo "Modified files: ${{ github.event.client_payload.modified_files || inputs.modified_files }}"
+          echo "PARAM_JOB_KEY=${{ github.event.client_payload.job_key || inputs.job_key }}" >> $GITHUB_ENV
+          echo "PARAM_MODIFIED_FILES=${{ github.event.client_payload.modified_files || inputs.modified_files }}" >> $GITHUB_ENV
+
+      - name: Set Authentication for Github Repositories for Terraform
+        run: git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com".insteadOf https://github.com
+
+      - name: Get Documentation Repository Details
+        run: |
+          # Get repository
+          REPO=$(jq -r '.docs.repository' documentation.json)
+
+          # Get branch
+          BRANCH=$(jq -r '.docs.branch' documentation.json)
+
+          echo "PARAM_REPO=$REPO" >> $GITHUB_ENV
+          echo "PARAM_BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Clone Documentation Repository
+        run: |
+          git clone ${{ env.PARAM_REPO }} -b ${{ env.PARAM_BRANCH }} ./.tmp
+          ls -la ./.tmp
