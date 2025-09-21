@@ -1,4 +1,4 @@
-name: Build and Deploy Package
+name: Documentation Proxy
 on:
   push:
     branches:
