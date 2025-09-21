@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Job-based documentation processor for git changes
-set -e
+# Note: We don't use 'set -e' to avoid exit on process_job returning 1
 
 # Configuration
 DOCUMENTATION_CONFIG="documentation.json"
@@ -109,10 +109,10 @@ get_changed_files() {
     # Use command line arguments if provided
     if [ -n "$FROM_COMMIT" ]; then
         log "Using specified commit range: $FROM_COMMIT..$TO_COMMIT"
-        git diff --name-only --diff-filter=ACMRT "$FROM_COMMIT" "$TO_COMMIT" 2>/dev/null || {
+        if ! git diff --name-only --diff-filter=ACMRT "$FROM_COMMIT" "$TO_COMMIT" 2>/dev/null; then
             error "Invalid commit range: $FROM_COMMIT..$TO_COMMIT"
             exit 1
-        }
+        fi
     elif [ "$commit_count" -lt 2 ]; then
         # If we only have one commit, show all files in that commit
         log "Only one commit found, showing all files in HEAD"
@@ -375,13 +375,16 @@ write_output_json() {
 main() {
     log "Starting job-based documentation processor"
     
-    # Validate environment
+    # Validate environment (will exit 1 on error)
     check_dependencies
     validate_environment
     
     # Get list of changed files from the last commit
     local changed_files
-    changed_files=$(get_changed_files)
+    if ! changed_files=$(get_changed_files); then
+        error "Failed to get changed files"
+        exit 1
+    fi
     
     if [ -z "$changed_files" ]; then
         log "No files changed in the last commit"
@@ -403,6 +406,7 @@ main() {
     while IFS= read -r job; do
         if [ -n "$job" ]; then
             ((total_jobs++))
+            # Handle the return code properly - don't let it cause script exit
             if process_job "$job" "$changed_files"; then
                 ((jobs_with_changes++))
             fi
@@ -411,7 +415,10 @@ main() {
     done < <(jq -c '.jobs[]' "$DOCUMENTATION_CONFIG")
     
     # Write results to JSON file
-    write_output_json "$total_jobs" "$jobs_with_changes" "$changed_files"
+    if ! write_output_json "$total_jobs" "$jobs_with_changes" "$changed_files"; then
+        error "Failed to write output JSON"
+        exit 1
+    fi
     
     # Summary
     log "=== SUMMARY ==="
