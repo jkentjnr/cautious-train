@@ -7,6 +7,41 @@ set -e
 DOCUMENTATION_CONFIG="documentation.json"
 OUTPUT_FILE="output.json"
 
+# Command line options
+FROM_COMMIT=""
+TO_COMMIT="HEAD"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --from)
+            FROM_COMMIT="$2"
+            shift 2
+            ;;
+        --to)
+            TO_COMMIT="$2"
+            shift 2
+            ;;
+        --output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  --from COMMIT    Compare from this commit (default: auto-detect)"
+            echo "  --to COMMIT      Compare to this commit (default: HEAD)"
+            echo "  --output FILE    Output file (default: output.json)"
+            echo "  --help, -h       Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -68,7 +103,24 @@ validate_environment() {
 
 # Get list of all files changed in the last commit
 get_changed_files() {
-    git diff --name-only --diff-filter=ACMRT HEAD~1 HEAD
+    # Check if we have at least 2 commits
+    local commit_count=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+    
+    # Use command line arguments if provided
+    if [ -n "$FROM_COMMIT" ]; then
+        log "Using specified commit range: $FROM_COMMIT..$TO_COMMIT"
+        git diff --name-only --diff-filter=ACMRT "$FROM_COMMIT" "$TO_COMMIT" 2>/dev/null || {
+            error "Invalid commit range: $FROM_COMMIT..$TO_COMMIT"
+            exit 1
+        }
+    elif [ "$commit_count" -lt 2 ]; then
+        # If we only have one commit, show all files in that commit
+        log "Only one commit found, showing all files in HEAD"
+        git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || echo ""
+    else
+        # Normal case: compare with previous commit
+        git diff --name-only --diff-filter=ACMRT HEAD~1 HEAD
+    fi
 }
 
 # Check if any files in the input array have been modified
@@ -107,6 +159,16 @@ process_job() {
     log "  Type: $job_type"
     log "  Input files: $(echo "$input_files_json" | jq -r '.[]' | tr '\n' ' ')"
     
+    # Debug: Show which input files we're checking against
+    local input_files=($(echo "$input_files_json" | jq -r '.[]'))
+    for input_file in "${input_files[@]}"; do
+        if echo "$changed_files" | grep -Fxq "$input_file"; then
+            log "  ✓ Match found: $input_file"
+        else
+            log "  ✗ No match: $input_file"
+        fi
+    done
+    
     # Get list of modified input files for this job
     local modified_files
     modified_files=$(get_modified_input_files "$job_key" "$input_files_json" "$changed_files")
@@ -136,9 +198,18 @@ call_external_routine() {
     log "  Modified files: $modified_files"
     log "  Documentation files: $documentation_files"
     
-    # Get current git context
-    local current_commit=$(git rev-parse HEAD)
-    local previous_commit=$(git rev-parse HEAD~1)
+    # Get current git context with safe fallbacks
+    local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    local previous_commit=""
+    local commit_count=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+    
+    if [ "$commit_count" -lt 2 ]; then
+        previous_commit="none"
+        log "  Note: Only one commit exists, no previous commit available"
+    else
+        previous_commit=$(git rev-parse HEAD~1 2>/dev/null || echo "unknown")
+    fi
+    
     local branch=$(git branch --show-current 2>/dev/null || echo "unknown")
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
@@ -181,6 +252,7 @@ call_external_routine() {
         --argjson urgent "$urgent" \
         --arg triggered_by "$(git config user.name 2>/dev/null || echo 'Unknown')" \
         --arg repository "$(git config --get remote.origin.url 2>/dev/null || echo 'Unknown')" \
+        --argjson commit_count "$commit_count" \
         '{
             job_key: $job_key,
             job_type: $job_type,
@@ -192,7 +264,9 @@ call_external_routine() {
                 current_commit: $current_commit,
                 previous_commit: $previous_commit,
                 branch: $branch,
-                repository: $repository
+                repository: $repository,
+                commit_count: $commit_count,
+                is_initial_commit: ($commit_count < 2)
             },
             metadata: {
                 triggered_by: $triggered_by,
@@ -212,6 +286,10 @@ call_external_routine() {
     echo "Modified Files: $modified_files"
     echo "File Count: $file_count"
     echo "Urgent: $urgent"
+    echo "Commit Count: $commit_count"
+    if [ "$commit_count" -lt 2 ]; then
+        echo "Note: Initial commit scenario"
+    fi
     echo "============================="
 }
 
@@ -221,9 +299,17 @@ write_output_json() {
     local jobs_with_changes="$2"
     local changed_files="$3"
     
-    # Get overall git context
-    local current_commit=$(git rev-parse HEAD)
-    local previous_commit=$(git rev-parse HEAD~1)
+    # Get overall git context with safe fallbacks
+    local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    local previous_commit=""
+    local commit_count=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+    
+    if [ "$commit_count" -lt 2 ]; then
+        previous_commit="none"
+    else
+        previous_commit=$(git rev-parse HEAD~1 2>/dev/null || echo "unknown")
+    fi
+    
     local branch=$(git branch --show-current 2>/dev/null || echo "unknown")
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local repository=$(git config --get remote.origin.url 2>/dev/null || echo "Unknown")
@@ -253,6 +339,7 @@ write_output_json() {
         --arg branch "$branch" \
         --arg timestamp "$timestamp" \
         --arg repository "$repository" \
+        --argjson commit_count "$commit_count" \
         --arg triggered_by "$(git config user.name 2>/dev/null || echo 'Unknown')" \
         '{
             summary: {
@@ -260,13 +347,15 @@ write_output_json() {
                 jobs_with_changes: $jobs_with_changes,
                 has_changes: ($jobs_with_changes > 0),
                 timestamp: $timestamp,
-                triggered_by: $triggered_by
+                triggered_by: $triggered_by,
+                is_initial_commit: ($commit_count < 2)
             },
             git_context: {
                 repository: $repository,
                 branch: $branch,
                 current_commit: $current_commit,
                 previous_commit: $previous_commit,
+                commit_count: $commit_count,
                 changed_files: $changed_files,
                 changed_file_count: ($changed_files | length)
             },
@@ -332,8 +421,10 @@ main() {
     
     if [ $jobs_with_changes -gt 0 ]; then
         success "Found jobs that need documentation updates!"
+        exit 0  # Success - jobs found
     else
         log "No jobs have modified input files"
+        exit 0  # Success - no jobs needed (not an error)
     fi
 }
 
