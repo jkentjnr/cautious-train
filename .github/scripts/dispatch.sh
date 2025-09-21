@@ -113,7 +113,10 @@ send_job_dispatch() {
     # Extract job information
     local job_key=$(echo "$job_data" | jq -r '.job_key')
     local job_type=$(echo "$job_data" | jq -r '.job_type')
-    local modified_files=$(echo "$job_data" | jq -c '.modified_files')
+    local modified_files_array=$(echo "$job_data" | jq -c '.modified_files')
+    
+    # Convert modified_files array to comma-delimited string
+    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[] | @csv' | tr -d '"' | paste -sd ',' -)
     
     # Create event type
     local event_type="update-documentation-${job_type}"
@@ -121,14 +124,14 @@ send_job_dispatch() {
     log "Sending repository dispatch for job: $job_key"
     log "  Event type: $event_type"
     log "  Target repo: $target_repo"
-    log "  Modified files: $(echo "$modified_files" | jq -r '.[]' | tr '\n' ' ')"
+    log "  Modified files: $modified_files_string"
 
     log "Create Payload..."
 
     # Create payload for the GitHub workflow
     local payload=$(jq -n \
         --arg job_key "$job_key" \
-        --argjson modified_files "$modified_files" \
+        --arg modified_files "$modified_files_string" \
         '{
             job_key: $job_key,
             modified_files: $modified_files
@@ -183,10 +186,13 @@ send_job_dispatch_enhanced() {
     # Extract job information
     local job_key=$(echo "$job_data" | jq -r '.job_key')
     local job_type=$(echo "$job_data" | jq -r '.job_type')
-    local modified_files=$(echo "$job_data" | jq -c '.modified_files')
+    local modified_files_array=$(echo "$job_data" | jq -c '.modified_files')
     local documentation_files=$(echo "$job_data" | jq -c '.documentation_files')
     local urgent=$(echo "$job_data" | jq -r '.urgent')
     local modified_count=$(echo "$job_data" | jq -r '.modified_count')
+    
+    # Convert modified_files array to comma-delimited string
+    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[] | @csv' | tr -d '"' | paste -sd ',' -)
     
     # Create event type
     local event_type="update-documentation-${job_type}"
@@ -194,13 +200,13 @@ send_job_dispatch_enhanced() {
     log "Sending enhanced repository dispatch for job: $job_key"
     log "  Event type: $event_type"
     log "  Target repo: $target_repo"
-    log "  Modified files: $(echo "$modified_files" | jq -r '.[]' | tr '\n' ' ')"
+    log "  Modified files: $modified_files_string"
     log "  Urgent: $urgent"
     
     # Create enhanced payload
     local payload=$(jq -n \
         --arg job_key "$job_key" \
-        --argjson modified_files "$modified_files" \
+        --arg modified_files "$modified_files_string" \
         --argjson documentation_files "$documentation_files" \
         --arg job_type "$job_type" \
         --argjson modified_count "$modified_count" \
@@ -337,10 +343,13 @@ main() {
         local job_key=$(echo "$job" | jq -r '.job_key')
         
         if [ "$dry_run" = true ]; then
+            # Convert array to comma string for dry run display
+            local modified_files_display=$(echo "$job" | jq -r '.modified_files[] | @csv' | tr -d '"' | paste -sd ',' -)
+            
             log "[DRY RUN] Would send repository dispatch for job: $job_key"
             log "  Event type: update-documentation-$(echo "$job" | jq -r '.job_type')"
             log "  Branch: $(echo "$job" | jq -r '.git_context.branch // "unknown"')"
-            log "  Payload: $(echo "$job" | jq -c '{ job_key, modified_files, branch: .git_context.branch }')"
+            log "  Modified files: $modified_files_display"
             ((success_count++))
         else
             if [ "$enhanced_mode" = true ]; then
