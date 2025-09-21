@@ -71,7 +71,7 @@
             <targetReference>Has_Key</targetReference>
         </connector>
     </start>
-    <status>Active</status>
+    <status>Draft</status>
     <variables>
         <name>Key</name>
         <dataType>String</dataType>
