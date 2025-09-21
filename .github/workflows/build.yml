@@ -1,0 +1,24 @@
+name: Build and Deploy Package
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+jobs:
+  deploy:
+    name: Execute Tests and Deploy
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Execute Compare
+        working-directory: .
+        run: .github/scripts/queue_changes.sh
+
+      - name: View Output
+        run: cat output.json

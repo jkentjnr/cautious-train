@@ -11,9 +11,12 @@
   },
   "jobs": [
     {
-      "key": "flow-commerce-account-key",
+      "key": "flow-donation-account-key",
       "type": "flow",
-      "input": ["force-app/main/default/flows/MoveData_Commerce_Account_Key.flow-meta.xml"],
+      "input": [
+        "force-app/main/default/flows/MoveData_Donation_Account_Duplicate.flow-meta.xml",
+        "force-app/main/default/flows/MoveData_Donation_Account_Key.flow-meta.xml"
+      ],
       "documentation": ["flows-accounts/account-platform-key-flow.md"]
     }
   ]
