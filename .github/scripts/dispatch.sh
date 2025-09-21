@@ -86,12 +86,12 @@ get_target_repo_info() {
         exit 1
     fi
     
-    # Extract owner/repo from URL
-    local repo_path=$(echo "$repo_url" | sed -E 's|.*github\.com[/:]([^/]+/[^/]+)(\.git)?.*|\1|')
+    # Extract owner/repo from URL and strip .git
+    local repo_path=$(echo "$repo_url" | sed -E 's|.*github\.com[/:]([^/]+/[^/]+).*|\1|' | sed 's/\.git$//')
     
     if [ -z "$repo_path" ] || [[ ! "$repo_path" =~ ^[^/]+/[^/]+$ ]]; then
         error "Invalid repository URL: $repo_url"
-        error "Expected format: https://github.com/owner/repo.git"
+        error "Expected format: https://github.com/owner/repo or https://github.com/owner/repo.git"
         exit 1
     fi
     
@@ -135,7 +135,7 @@ send_job_dispatch() {
     local gh_output
     local gh_exit_code
     
-    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --field client_payload=\"\$payload\""
+    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --field client_payload=\"$payload\""
     
     gh_output=$(gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
