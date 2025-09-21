@@ -116,7 +116,7 @@ send_job_dispatch() {
     local modified_files_array=$(echo "$job_data" | jq -c '.modified_files')
     
     # Convert modified_files array to comma-delimited string
-    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[] | @csv' | tr -d '"' | paste -sd ',' -)
+    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[]' | paste -sd ',' -)
     
     # Create event type
     local event_type="update-documentation-${job_type}"
@@ -192,7 +192,7 @@ send_job_dispatch_enhanced() {
     local modified_count=$(echo "$job_data" | jq -r '.modified_count')
     
     # Convert modified_files array to comma-delimited string
-    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[] | @csv' | tr -d '"' | paste -sd ',' -)
+    local modified_files_string=$(echo "$modified_files_array" | jq -r '.[]' | paste -sd ',' -)
     
     # Create event type
     local event_type="update-documentation-${job_type}"
@@ -344,7 +344,7 @@ main() {
         
         if [ "$dry_run" = true ]; then
             # Convert array to comma string for dry run display
-            local modified_files_display=$(echo "$job" | jq -r '.modified_files[] | @csv' | tr -d '"' | paste -sd ',' -)
+            local modified_files_display=$(echo "$job" | jq -r '.modified_files[]' | paste -sd ',' -)
             
             log "[DRY RUN] Would send repository dispatch for job: $job_key"
             log "  Event type: update-documentation-$(echo "$job" | jq -r '.job_type')"
