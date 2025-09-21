@@ -25,10 +25,22 @@ jobs:
       - name: View Output
         run: cat output.json
 
+      - name: 🔑 Setup GitHub CLI authentication
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          # Write token to a temporary file
+          echo "$GITHUB_TOKEN" > /tmp/gh_token.txt
+          
+          # Authenticate using the token file
+          gh auth login --with-token < /tmp/gh_token.txt
+          
+          # Verify authentication
+          gh auth status
+          
+          # Clean up the token file for security
+          rm -f /tmp/gh_token.txt
+
       - name: Execute Dispatch
         working-directory: .
-        run: |
-          gh auth login --with-token < $GITHUB_TOKEN
-          .github/scripts/dispatch.sh
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}  # Custom PAT
+        run: .github/scripts/dispatch.sh
