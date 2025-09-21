@@ -134,12 +134,12 @@ send_job_dispatch() {
     # Send repository dispatch
     local gh_output
     local gh_exit_code
-    
-    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --field client_payload=\"$payload\""
-    
+
+    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --raw-field client_payload=\"$payload\""
+
     gh_output=$(gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
-        --field client_payload="$payload" 2>&1)
+        --raw-field client_payload="$payload" 2>&1)
     gh_exit_code=$?
     
     log "GitHub API response: $gh_output"
@@ -209,7 +209,7 @@ send_job_dispatch_enhanced() {
     # Send repository dispatch
     if gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
-        --field client_payload="$payload" >/dev/null 2>&1; then
+        --raw-field client_payload="$payload" >/dev/null 2>&1; then
         success "Enhanced repository dispatch sent for job: $job_key"
         return 0
     else
