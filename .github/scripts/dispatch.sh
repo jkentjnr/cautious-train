@@ -134,13 +134,29 @@ send_job_dispatch() {
     # Send repository dispatch
     local gh_output
     local gh_exit_code
-
-    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --raw-field client_payload=\"$payload\""
-
+    
+    # Create a temporary file for the request body
+    local temp_payload=$(mktemp)
+    local request_body=$(jq -n \
+        --arg event_type "$event_type" \
+        --argjson client_payload "$payload" \
+        '{
+            event_type: $event_type,
+            client_payload: $client_payload
+        }')
+    
+    echo "$request_body" > "$temp_payload"
+    
+    log "Executing: gh api repos/$target_repo/dispatches --input \"$temp_payload\""
+    log "Request body: $request_body"
+    
     gh_output=$(gh api "repos/$target_repo/dispatches" \
-        --field event_type="$event_type" \
-        --raw-field client_payload="$payload" 2>&1)
+        --method POST \
+        --input "$temp_payload" 2>&1)
     gh_exit_code=$?
+    
+    # Clean up temp file
+    rm -f "$temp_payload"
     
     log "GitHub API response: $gh_output"
     log "Exit code: $gh_exit_code"
@@ -207,13 +223,41 @@ send_job_dispatch_enhanced() {
     log "Payload for job $job_key: $payload"
 
     # Send repository dispatch
-    if gh api "repos/$target_repo/dispatches" \
-        --field event_type="$event_type" \
-        --raw-field client_payload="$payload" >/dev/null 2>&1; then
+    local gh_output
+    local gh_exit_code
+    
+    # Create a temporary file for the request body
+    local temp_payload=$(mktemp)
+    local request_body=$(jq -n \
+        --arg event_type "$event_type" \
+        --argjson client_payload "$payload" \
+        '{
+            event_type: $event_type,
+            client_payload: $client_payload
+        }')
+    
+    echo "$request_body" > "$temp_payload"
+    
+    log "Executing: gh api repos/$target_repo/dispatches --input \"$temp_payload\""
+    log "Request body: $request_body"
+    
+    gh_output=$(gh api "repos/$target_repo/dispatches" \
+        --method POST \
+        --input "$temp_payload" 2>&1)
+    gh_exit_code=$?
+    
+    # Clean up temp file
+    rm -f "$temp_payload"
+    
+    log "GitHub API response: $gh_output"
+    log "Exit code: $gh_exit_code"
+    
+    if [ $gh_exit_code -eq 0 ]; then
         success "Enhanced repository dispatch sent for job: $job_key"
         return 0
     else
         error "Failed to send repository dispatch for job: $job_key"
+        error "GitHub API error: $gh_output"
         return 1
     fi
 }
