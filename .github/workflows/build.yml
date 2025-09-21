@@ -27,6 +27,8 @@ jobs:
 
       - name: Execute Dispatch
         working-directory: .
-        run: .github/scripts/dispatch.sh
+        run: |
+          gh auth login --with-token $GITHUB_TOKEN
+          .github/scripts/dispatch.sh
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}  # Custom PAT
