@@ -189,7 +189,9 @@ send_job_dispatch_enhanced() {
                 source: "queue_changes_dispatch"
             }
         }')
-    
+
+    log "Payload for job $job_key: $payload"
+
     # Send repository dispatch
     if gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
