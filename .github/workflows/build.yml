@@ -24,3 +24,7 @@ jobs:
 
       - name: View Output
         run: cat output.json
+
+      - name: Execute Dispatch
+        working-directory: .
+        run: .github/scripts/dispatch.sh
