@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>60.0</apiVersion>
+    <apiVersion>49.0</apiVersion>
     <assignments>
         <name>Return_Object_Key</name>
         <label>Return Object Key</label>
-        <locationX>446</locationX>
-        <locationY>239</locationY>
+        <locationX>50</locationX>
+        <locationY>242</locationY>
         <assignmentItems>
             <assignToReference>Result</assignToReference>
             <operator>Assign</operator>
@@ -17,8 +17,8 @@
     <decisions>
         <name>Has_Key</name>
         <label>Has Key</label>
-        <locationX>168</locationX>
-        <locationY>241</locationY>
+        <locationX>182</locationX>
+        <locationY>134</locationY>
         <defaultConnectorLabel>No</defaultConnectorLabel>
         <rules>
             <name>Yes</name>
@@ -36,19 +36,25 @@
             <label>Yes</label>
         </rules>
     </decisions>
+    <environments>Default</environments>
     <formulas>
         <name>GeneralPlatformKey</name>
         <dataType>String</dataType>
         <expression>{!Platform}&amp;&quot;:&quot;&amp;{!Key}</expression>
     </formulas>
-    <interviewLabel
-  >[MoveData] Commerce: Account - Platform Key {!$Flow.CurrentDateTime}</interviewLabel>
+    <interviewLabel>[MoveData] General: Account - Platform Key {!$Flow.CurrentDateTime}</interviewLabel>
     <isTemplate>true</isTemplate>
-    <label>[MoveData] Commerce: Account - Platform Key</label>
+    <label>[MoveData] General: Account - Platform Key</label>
     <processMetadataValues>
         <name>BuilderType</name>
         <value>
             <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
         </value>
     </processMetadataValues>
     <processMetadataValues>
@@ -59,8 +65,8 @@
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
     <start>
-        <locationX>50</locationX>
-        <locationY>50</locationY>
+        <locationX>56</locationX>
+        <locationY>0</locationY>
         <connector>
             <targetReference>Has_Key</targetReference>
         </connector>
