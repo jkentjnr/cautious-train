@@ -28,6 +28,8 @@ jobs:
           echo "PARAM_JOB_KEY=${{ github.event.client_payload.job_key || inputs.job_key }}" >> $GITHUB_ENV
           echo "PARAM_MODIFIED_FILES=${{ github.event.client_payload.modified_files || inputs.modified_files }}" >> $GITHUB_ENV
 
+      - uses: actions/checkout@v5
+
       - name: Set Authentication for Github Repositories for Terraform
         run: git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com".insteadOf https://github.com
 
