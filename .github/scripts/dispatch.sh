@@ -131,16 +131,26 @@ send_job_dispatch() {
             branch: $branch
         }')
 
-    log "Payload for job $job_key: $payload"
-
     # Send repository dispatch
-    if gh api "repos/$target_repo/dispatches" \
+    local gh_output
+    local gh_exit_code
+    
+    log "Executing: gh api repos/$target_repo/dispatches --field event_type=\"$event_type\" --field client_payload=\"\$payload\""
+    
+    gh_output=$(gh api "repos/$target_repo/dispatches" \
         --field event_type="$event_type" \
-        --field client_payload="$payload" >/dev/null 2>&1; then
+        --field client_payload="$payload" 2>&1)
+    gh_exit_code=$?
+    
+    log "GitHub API response: $gh_output"
+    log "Exit code: $gh_exit_code"
+    
+    if [ $gh_exit_code -eq 0 ]; then
         success "Repository dispatch sent for job: $job_key (branch: $branch)"
         return 0
     else
         error "Failed to send repository dispatch for job: $job_key"
+        error "GitHub API error: $gh_output"
         return 1
     fi
 }
