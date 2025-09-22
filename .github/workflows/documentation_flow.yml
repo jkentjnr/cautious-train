@@ -98,7 +98,10 @@ jobs:
 
           # Get documentation path
           documentation=$(jq -r --arg key "$job_key" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+          echo "Documentation file to update: $documentation"
           documentation_content=$(cat "./.tmp/$documentation")
+          echo -e "\nCurrent Documentation Content:\n----------------------\n$documentation_content\n----------------------\n"
+
           PROMPT="${PROMPT//\{\!documentation\}/$documentation_content}"
 
           echo -e "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
