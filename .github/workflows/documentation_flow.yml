@@ -54,6 +54,11 @@ jobs:
       - name: Generate Prompt for Flow Documentation
         run: |
 
+          echo "Generating prompt for flow documentation update..."
+
+          previous_prompt=""
+          current_prompt=""
+
           # Iterate over the input array for the specific job
           jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json | while read -r file; do
               echo "Processing file: $file"
@@ -77,9 +82,21 @@ jobs:
                   previous_content=""
               fi
 
-              echo "Current file: $current_content"
               echo "Previous file: $previous_content"
+              echo "Current file: $current_content"
+
+              previous_prompt+="<file name=\"$file\" version=\"previous\">\n$previous_content\n</file>\n\n"
+              current_prompt+="<file name=\"$file\" version=\"current\">\n$current_content\n</file>\n\n"
 
           done
+
+          # Combine into final prompt
+          PROMPT="${PROMPT//\${previous}/$previous_prompt}"
+          PROMPT="${PROMPT//\${current}/$current_prompt}"
+
+          echo "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
+          echo "PROMPT=$PROMPT" >> $GITHUB_ENV
+
         env:
+          PROMPT: ${{ vars.PROMPT_FLOW }}
           PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }} 
