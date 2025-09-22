@@ -135,40 +135,33 @@ jobs:
           echo "$RESPONSE"
           echo ""
 
-          # Extract the text content from the response
+          # Get documentation path
+          documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+
+          # Extract the text content
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
-          # Use Python for reliable extraction
-          python3 << EOF
-          import json
-          import re
+          # Simple approach: extract everything between ```json and ```
+          JSON_CONTENT=$(echo "$DATA" | grep -A 1000 '```json' | grep -B 1000 '^```$' | head -n -1 | tail -n +2)
 
-          data = '''$DATA'''
+          # Write to temp file and test
+          echo "$JSON_CONTENT" > temp.json
 
-          # Extract JSON block
-          json_match = re.search(r'```json\s*\n(.*?)\n```', data, re.DOTALL)
-          if json_match:
-              json_str = json_match.group(1).strip()
-              try:
-                  parsed = json.loads(json_str)
-                  
-                  # Write summary
-                  with open('summary.txt', 'w') as f:
-                      f.write(parsed['summary'])
-                  
-                  # Write file content with proper newlines
-                  file_content = parsed['file'].replace('\\\\n', '\n')
-                  with open('./.tmp/$documentation', 'w') as f:
-                      f.write(file_content)
-                  
-                  print("✓ Files extracted successfully")
-              except Exception as e:
-                  print(f"Error: {e}")
-                  print("Raw JSON preview:")
-                  print(json_str[:200])
-          else:
-              print("No JSON block found")
-          EOF
+          if jq empty temp.json 2>/dev/null; then
+              echo "✓ JSON extracted successfully"
+              
+              # Extract fields
+              jq -r '.summary' temp.json > summary.txt
+              jq -r '.file' temp.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
+              
+              echo "✓ Files created"
+          else
+              echo "✗ Failed to extract valid JSON"
+              echo "Extracted content:"
+              cat temp.json
+          fi
+
+          rm temp.json
 
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
