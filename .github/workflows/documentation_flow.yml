@@ -138,13 +138,33 @@ jobs:
 
           # Extract the text content from the response
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
+          echo "Extracted DATA: $DATA"
 
-          # Extract JSON from code blocks
+          # Extract JSON from code blocks and validate
           CLEAN_DATA=$(echo "$DATA" | sed -n '/```json/,/```/p' | sed '1d;$d')
+          echo "Clean JSON: $CLEAN_DATA"
 
-          # Then parse it
-          echo "$CLEAN_DATA" | jq -r '.summary' > summary.txt
-          echo "$CLEAN_DATA" | jq -r '.file' > "./.tmp/$documentation"
+          # Validate JSON before processing
+          if echo "$CLEAN_DATA" | jq empty 2>/dev/null; then
+              echo "✓ Valid JSON found"
+              
+              # Extract summary and file content
+              echo "$CLEAN_DATA" | jq -r '.summary' > summary.txt
+              echo "$CLEAN_DATA" | jq -r '.file' | python3 -c "
+                import sys
+                import json
+                content = sys.stdin.read()
+                # Properly decode escaped content
+                decoded = json.loads(json.dumps(content))
+                print(decoded, end='')
+          " > "./.tmp/$documentation"
+              
+              echo "✓ Files extracted successfully"
+          else
+              echo "✗ Invalid JSON format"
+              echo "Raw DATA: $DATA"
+              exit 1
+          fi
 
           echo "Generated Documentation Content:"
           cat "./.tmp/$documentation"
