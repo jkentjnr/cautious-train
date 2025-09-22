@@ -1,0 +1,77 @@
+name: Generate Prompt for Claude
+description: Generate prompt for Claude based on documentation changes
+
+inputs:
+  job-key:
+    description: 'Job key to identify the documentation task'
+    required: true
+  prompt:
+    description: 'Prompt template for documentation generation'
+    required: true
+
+outputs:
+  prompt:
+    description: 'Populated Prompt for documentation generation'
+    value: ${{ steps.p1.outputs.prompt_response }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set Authentication for Github Repositories
+      id: p1
+      shell: bash
+      run: |
+        echo "Generating prompt for flow documentation update..."
+
+        previous_prompt=""
+        current_prompt=""
+
+        # Use process substitution instead of pipe to avoid subshell
+        while read -r file; do
+            echo "Processing file: $file"
+
+            # Get the existing (current) file content
+            if [ -f "$file" ]; then
+                echo "Getting current version of: $file"
+                current_content=$(cat "$file")
+                echo "Current file size: $(echo "$current_content" | wc -l) lines"
+            else
+                echo "Warning: Current file $file not found"
+                current_content=""
+            fi
+
+            # Get the file content from the previous commit
+            if git show HEAD~1:"$file" > /dev/null 2>&1; then
+                echo "Getting previous version of: $file"
+                previous_content=$(git show HEAD~1:"$file")
+            else
+                echo "Warning: $file not found in previous commit (might be a new file)"
+                previous_content=""
+            fi
+
+            # Append to variables (these will now persist!)
+            previous_prompt+="=== [START] FILE: $file VERSION: previous ==="$'\n'"$previous_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
+            current_prompt+="=== [START] FILE: $file VERSION: current ==="$'\n'"$current_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
+
+        done < <(jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json)
+
+        # Combine into final prompt
+        PROMPT="${PROMPT//\{\!previous\}/$previous_prompt}"
+        PROMPT="${PROMPT//\{\!current\}/$current_prompt}"
+
+        # Get documentation path
+        documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+        documentation_content=$(cat "./.tmp/$documentation")
+        documentation_prompt="=== [START] FILE: $documentation ==="$'\n'"$documentation_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
+        PROMPT="${PROMPT//\{\!documentation\}/$documentation_prompt}"
+
+        echo -e "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
+
+        {
+          echo "prompt_response<<EOF"
+          echo "$PROMPT"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+      env:
+        PROMPT: ${{ inputs.prompt }}
+        PARAM_JOB_KEY: ${{ inputs.job-key }}

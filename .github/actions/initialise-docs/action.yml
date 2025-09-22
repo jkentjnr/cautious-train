@@ -1,0 +1,67 @@
+name: Initialise Documentation
+description: Initialise documentation generation process
+
+inputs:
+  job-key:
+    description: 'Job key to identify the documentation task'
+    required: true
+  modified-files:
+    description: 'Modified Files (Comma-Separated List)'
+    required: true
+  pat-token:
+    description: 'Personal Access Token for GitHub'
+    required: true
+
+outputs:
+  job-key:
+    description: 'Job Key'
+    value: ${{ steps.output-params.outputs.random-number }}
+  modified-files:
+    description: 'Modified Files'
+    value: ${{ steps.output-params.outputs.modified-files }}
+  documentation-repo:
+    description: 'Documentation Repository'
+    value: ${{ steps.get-doc-repo.outputs.repo }}
+  documentation-branch:
+    description: 'Documentation Branch'
+    value: ${{ steps.get-doc-repo.outputs.branch }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0  # Full history for diff
+
+    - name: Set Authentication for Github Repositories
+      shell: bash
+      run: git config --global url."https://${{ inputs.pat-token }}@github.com".insteadOf https://github.com
+
+    - name: Output Parameters
+      id: output-params
+      shell: bash
+      run: |
+        echo "Updating documentation for flow: ${{ github.event.client_payload.job_key || inputs.job_key }}"
+        echo "Modified files: ${{ github.event.client_payload.modified_files || inputs.modified-files }}"
+
+        echo "job-key=${{ github.event.client_payload.job_key || inputs.job-key }}" >> $GITHUB_OUTPUT
+        echo "modified-files=${{ github.event.client_payload.modified_files || inputs.modified-files }}" >> $GITHUB_OUTPUT
+
+    - name: Get Documentation Repository Details
+      id: get-doc-repo
+      shell: bash
+      run: |
+        # Get repository
+        REPO=$(jq -r '.docs.repository' documentation.json)
+
+        # Get branch
+        BRANCH=$(jq -r '.docs.branch' documentation.json)
+
+        echo "repo=$REPO" >> $GITHUB_OUTPUT
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+    - name: Clone Documentation Repository
+      shell: bash
+      run: |
+        git clone ${{ steps.get-doc-repo.outputs.repo }} -b ${{ steps.get-doc-repo.outputs.branch }} ./.tmp
+        ls -la ./.tmp

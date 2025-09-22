@@ -21,100 +21,26 @@ jobs:
   update-documentation-flow:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Initialise Documentation
+        id: context
+        uses: ./.github/actions/initialise-docs
         with:
-          fetch-depth: 0  # Full history for diff
-
-      - name: Output Parameters
-        run: |
-          echo "Updating documentation for flow: ${{ github.event.client_payload.job_key || inputs.job_key }}"
-          echo "Modified files: ${{ github.event.client_payload.modified_files || inputs.modified_files }}"
-          echo "PARAM_JOB_KEY=${{ github.event.client_payload.job_key || inputs.job_key }}" >> $GITHUB_ENV
-          echo "PARAM_MODIFIED_FILES=${{ github.event.client_payload.modified_files || inputs.modified_files }}" >> $GITHUB_ENV
-
-      - name: Set Authentication for Github Repositories for Terraform
-        run: git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com".insteadOf https://github.com
-
-      - name: Get Documentation Repository Details
-        run: |
-          # Get repository
-          REPO=$(jq -r '.docs.repository' documentation.json)
-
-          # Get branch
-          BRANCH=$(jq -r '.docs.branch' documentation.json)
-
-          echo "PARAM_REPO=$REPO" >> $GITHUB_ENV
-          echo "PARAM_BRANCH=$BRANCH" >> $GITHUB_ENV
-
-      - name: Clone Documentation Repository
-        run: |
-          git clone ${{ env.PARAM_REPO }} -b ${{ env.PARAM_BRANCH }} ./.tmp
-          ls -la ./.tmp
+          job-key: ${{ github.event.client_payload.job_key || inputs.job_key }}
+          modified-files: ${{ github.event.client_payload.modified_files || inputs.modified_files }}
+          pat-token: ${{ secrets.PAT_TOKEN }}
 
       - name: Generate Prompt for Flow Documentation
-        run: |
-
-          echo "Generating prompt for flow documentation update..."
-
-          previous_prompt=""
-          current_prompt=""
-
-          # Use process substitution instead of pipe to avoid subshell
-          while read -r file; do
-              echo "Processing file: $file"
-
-              # Get the existing (current) file content
-              if [ -f "$file" ]; then
-                  echo "Getting current version of: $file"
-                  current_content=$(cat "$file")
-                  echo "Current file size: $(echo "$current_content" | wc -l) lines"
-              else
-                  echo "Warning: Current file $file not found"
-                  current_content=""
-              fi
-
-              # Get the file content from the previous commit
-              if git show HEAD~1:"$file" > /dev/null 2>&1; then
-                  echo "Getting previous version of: $file"
-                  previous_content=$(git show HEAD~1:"$file")
-              else
-                  echo "Warning: $file not found in previous commit (might be a new file)"
-                  previous_content=""
-              fi
-
-              # Append to variables (these will now persist!)
-              previous_prompt+="=== [START] FILE: $file VERSION: previous ==="$'\n'"$previous_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
-              current_prompt+="=== [START] FILE: $file VERSION: current ==="$'\n'"$current_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
-
-          done < <(jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json)
-
-          # Combine into final prompt
-          PROMPT="${PROMPT//\{\!previous\}/$previous_prompt}"
-          PROMPT="${PROMPT//\{\!current\}/$current_prompt}"
-
-          # Get documentation path
-          documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
-          documentation_content=$(cat "./.tmp/$documentation")
-          documentation_prompt="=== [START] FILE: $documentation ==="$'\n'"$documentation_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
-          PROMPT="${PROMPT//\{\!documentation\}/$documentation_prompt}"
-
-          echo -e "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
-
-          {
-            echo "PROMPT<<EOF"
-            echo "$PROMPT"
-            echo "EOF"
-          } >> $GITHUB_ENV
-
-        env:
-          PROMPT: ${{ vars.PROMPT_FLOW }}
-          PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }}
+        id: gen-prompt
+        uses: ./.github/actions/gen-prompt
+        with:
+          job-key: ${{ steps.context.outputs.job-key }}
+          prompt: ${{ vars.PROMPT_FLOW }}
 
       - name: Generate Documentation and Create PR
         id: gen-and-pr
         uses: ./.github/actions/gen-docs-plus-pr
         with:
-          job-key: ${{ env.PARAM_JOB_KEY }}
-          prompt: ${{ env.PROMPT }}
+          job-key: ${{ steps.context.outputs.job-key }}
+          prompt: ${{ steps.gen-prompt.outputs.prompt }}
           pat-token: ${{ secrets.PAT_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
