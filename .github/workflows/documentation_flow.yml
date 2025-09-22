@@ -130,6 +130,7 @@ jobs:
               ]
             }')")
           echo "Response received from Claude."
+          echo "Response: $RESPONSE"
 
           # Get documentation path
           documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
