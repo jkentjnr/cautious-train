@@ -109,3 +109,27 @@ jobs:
         env:
           PROMPT: ${{ vars.PROMPT_FLOW }}
           PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }} 
+
+      - name: Generate Documentation with Claude
+        run: |
+          # Escape the prompt for JSON
+          ESCAPED_PROMPT=$(printf '%s' "$PROMPT" | jq -Rs .)
+
+          RESPONSE=$(curl https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -d '{
+              "model": "claude-sonnet-4-20250514",
+              "max_tokens": 1000,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": '$ESCAPED_PROMPT'
+                }
+              ]
+            }')
+
+            echo "$RESPONSE"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ env.PROMPT }}
