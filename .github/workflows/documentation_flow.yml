@@ -82,13 +82,16 @@ jobs:
                   previous_content=""
               fi
 
-              echo "Previous file: $previous_content"
-              echo "Current file: $current_content"
+              #echo "Previous file: $previous_content"
+              #echo "Current file: $current_content"
 
               previous_prompt+="<file name=\"$file\" version=\"previous\">\n$previous_content\n</file>\n\n"
               current_prompt+="<file name=\"$file\" version=\"current\">\n$current_content\n</file>\n\n"
 
           done
+
+          echo "\nprevious_prompt:\n----------------------\n$previous_prompt\n----------------------\n"
+          echo "\ncurrent_prompt:\n----------------------\n$current_prompt\n----------------------\n"
 
           # Combine into final prompt
           PROMPT="${PROMPT//\${previous}/$previous_prompt}"
