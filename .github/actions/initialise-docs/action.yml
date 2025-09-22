@@ -15,7 +15,7 @@ inputs:
 outputs:
   job-key:
     description: 'Job Key'
-    value: ${{ steps.output-params.outputs.random-number }}
+    value: ${{ steps.output-params.outputs.job-key }}
   modified-files:
     description: 'Modified Files'
     value: ${{ steps.output-params.outputs.modified-files }}
