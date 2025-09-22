@@ -98,11 +98,9 @@ jobs:
 
           # Get documentation path
           documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
-          echo "Documentation file to update: $documentation"
           documentation_content=$(cat "./.tmp/$documentation")
-          echo -e "\nCurrent Documentation Content:\n----------------------\n$documentation_content\n----------------------\n"
-
-          PROMPT="${PROMPT//\{\!documentation\}/$documentation_content}"
+          documentation_prompt="=== [START] FILE: $documentation ==="$'\n'"$documentation_content"$'\n'"=== [END] FILE ==="$'\n'
+          PROMPT="${PROMPT//\{\!documentation\}/$documentation_prompt}"
 
           echo -e "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
 
