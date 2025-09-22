@@ -110,7 +110,8 @@ jobs:
           PROMPT: ${{ vars.PROMPT_FLOW }}
           PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }}
 
-      - id: gen-and-pr
+      - name: Generate Documentation and Create PR
+        id: gen-and-pr
         uses: ./.github/actions/gen-docs-plus-pr
         with:
           job-key: ${{ env.PARAM_JOB_KEY }}

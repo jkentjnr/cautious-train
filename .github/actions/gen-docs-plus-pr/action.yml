@@ -98,12 +98,24 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
+        # Check if there are any changes to commit
+        if git diff --quiet && git diff --staged --quiet; then
+          echo "No changes detected. Documentation is already up to date."
+          exit 0
+        fi
+
         # Create a new branch
         BRANCH_NAME="update/${{ inputs.job-key }}-$(date +%s)"
         git checkout -b $BRANCH_NAME
 
         # Stage changes
         git add .
+
+        # Check again after staging (in case git add didn't stage anything)
+        if git diff --staged --quiet; then
+          echo "No changes to commit after staging. Documentation is already up to date."
+          exit 0
+        fi
 
         # Commit changes
         COMMIT_MESSAGE="Update documentation for flow: ${{ env.PARAM_JOB_KEY }}"
