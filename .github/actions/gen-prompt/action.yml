@@ -21,6 +21,9 @@ runs:
       id: p1
       shell: bash
       run: |
+        echo "Configuration:"
+        cat documentation.json
+
         echo "Generating prompt for flow documentation update..."
 
         previous_prompt=""
