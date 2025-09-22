@@ -1,0 +1,111 @@
+name: Generate Documentation and Create PR
+description: Generate documentation using Claude and create a pull request
+
+inputs:
+  job-key:
+    description: 'Job key to identify the documentation task'
+    required: true
+  prompt:
+    description: 'Prompt for documentation generation'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Documentation with Claude
+      run: |
+        # Escape the prompt for JSON
+        ESCAPED_PROMPT=$(printf '%s' "$PROMPT" | jq -Rs .)
+
+        RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+          -H "Content-Type: application/json" \
+          -H "x-api-key: $ANTHROPIC_API_KEY" \
+          -H "anthropic-version: 2023-06-01" \
+          -d "$(jq -n --arg prompt "$PROMPT" '{
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 20000,
+            "messages": [
+              {
+                "role": "user",
+                "content": $prompt
+              }
+            ]
+          }')")
+        echo "Response received from Claude."
+
+        echo "Claude Response:"
+        echo "$RESPONSE"
+        echo ""
+
+        # Get documentation path
+        documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+
+        # Extract the text content
+        DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
+
+        # Simple approach: extract everything between ```json and ```
+        JSON_CONTENT=$(echo "$DATA" | grep -A 1000 '```json' | grep -B 1000 '^```$' | head -n -1 | tail -n +2)
+
+        # Write to temp file and test
+        echo "$JSON_CONTENT" > temp.json
+
+        if jq empty temp.json 2>/dev/null; then
+            echo "✓ JSON extracted successfully"
+            
+            # Extract fields
+            jq -r '.summary' temp.json > summary.txt
+            jq -r '.file' temp.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
+            
+            echo "✓ Files created"
+        else
+            echo "✗ Failed to extract valid JSON"
+            echo "Extracted content:"
+            cat temp.json
+        fi
+
+        rm temp.json
+
+        echo "----------------------------------------"
+        echo "Summary:"
+        cat summary.txt
+        echo "----------------------------------------"
+        echo ""
+        echo "Documentation updated at ./.tmp/$documentation:"
+        echo "----------------------------------------"
+        cat "./.tmp/$documentation"
+        echo "----------------------------------------"
+
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        PROMPT: ${{ inputs.prompt }}
+        PARAM_JOB_KEY: ${{ inputs.job-key }}
+
+    - name: Generate Pull Request in Documentation Repository
+      run: |
+        cd ./.tmp
+
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Create a new branch
+        BRANCH_NAME="update/${{ inputs.job-key }}-$(date +%s)"
+        git checkout -b $BRANCH_NAME
+
+        # Stage changes
+        git add .
+
+        # Commit changes
+        COMMIT_MESSAGE="Update documentation for flow: ${{ env.PARAM_JOB_KEY }}"
+        git commit -m "$COMMIT_MESSAGE"
+
+        # Push branch
+        git push origin $BRANCH_NAME
+
+        # Create Pull Request using gh CLI
+        gh auth login --with-token <<< ${{ secrets.PAT_TOKEN }}
+        gh pr create --title "$COMMIT_MESSAGE" --body "$(cat ../summary.txt)" --head $BRANCH_NAME --base ${{ inputs.target-branch }}
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        PARAM_JOB_KEY: ${{ inputs.job-key }}
+        PARAM_BRANCH: ${{ inputs.target-branch }}
