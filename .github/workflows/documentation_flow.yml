@@ -136,28 +136,32 @@ jobs:
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
           # Write DATA to temp file for easier processing
-          echo "$DATA" > ../temp_response.txt
+          echo "$DATA" > temp_response.txt
 
           # Extract JSON manually using awk
-          awk '/```json/,/^```$/ {if(!/```/) print}' ../temp_response.txt > ../extracted.json
+          awk '/```json/,/^```$/ {if(!/```/) print}' temp_response.txt > extracted.json
+
+          echo "Extracted JSON content:"
+          cat extracted.json
+          echo ""
 
           # Test the extracted JSON
-          if jq empty ../extracted.json 2>/dev/null; then
+          if jq empty extracted.json 2>/dev/null; then
               echo "✓ Valid JSON extracted"
               
               # Extract summary and file
-              jq -r '.summary' ../extracted.json > summary.txt
-              jq -r '.file' ../extracted.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
+              jq -r '.summary' extracted.json > summary.txt
+              jq -r '.file' extracted.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
               
               echo "✓ Files created successfully"
           else
               echo "✗ JSON extraction failed"
               echo "Extracted content:"
-              cat ../extracted.json
+              cat extracted.json
           fi
 
           # Cleanup
-          rm ../temp_response.txt ../extracted.json
+          rm temp_response.txt extracted.json
 
           echo "Generated Documentation Content:"
           cat "./.tmp/$documentation"
