@@ -83,8 +83,8 @@ jobs:
               fi
 
               # Append to variables (these will now persist!)
-              previous_prompt+="=== [START] FILE: $file VERSION: previous ==="$'\n'"$previous_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
-              current_prompt+="=== [START] FILE: $file VERSION: current ==="$'\n'"$current_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
+              previous_prompt+="=== [START] FILE: $file VERSION: previous ==="$'\n'"$previous_content"$'\n'"=== [END] FILE ==="$'\n'
+              current_prompt+="=== [START] FILE: $file VERSION: current ==="$'\n'"$current_content"$'\n'"=== [END] FILE ==="$'\n'
 
           done < <(jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json)
 
@@ -95,6 +95,11 @@ jobs:
           # Combine into final prompt
           PROMPT="${PROMPT//\{\!previous\}/$previous_prompt}"
           PROMPT="${PROMPT//\{\!current\}/$current_prompt}"
+
+          # Get documentation path
+          documentation=$(jq -r --arg key "$job_key" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+          documentation_content=$(cat "./.tmp/$documentation")
+          PROMPT="${PROMPT//\{\!documentation\}/$documentation_content}"
 
           echo -e "\nFinal Prompt:\n----------------------\n$PROMPT\n----------------------\n"
 
