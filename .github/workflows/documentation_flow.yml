@@ -135,43 +135,40 @@ jobs:
           echo "$RESPONSE"
           echo ""
 
-          # Extract just what we need without complex sed
+          # Extract the text content from the response
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
-          # Write DATA to temp file for easier processing
-          echo "$DATA" > temp_response.txt
+          # Use Python for reliable extraction
+          python3 << EOF
+          import json
+          import re
 
-          echo "Temp Response:"
-          cat temp_response.txt
-          echo ""
+          data = '''$DATA'''
 
-          # Extract JSON manually using awk
-          awk '/```json/,/^```$/ {if(!/```/) print}' temp_response.txt > extracted.json
-
-          echo "Extracted JSON content:"
-          cat extracted.json
-          echo ""
-
-          # Test the extracted JSON
-          if jq empty extracted.json 2>/dev/null; then
-              echo "✓ Valid JSON extracted"
-              
-              # Extract summary and file
-              jq -r '.summary' extracted.json > summary.txt
-              jq -r '.file' extracted.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
-              
-              echo "✓ Files created successfully"
-          else
-              echo "✗ JSON extraction failed"
-              echo "Extracted content:"
-              cat extracted.json
-          fi
-
-          # Cleanup
-          rm temp_response.txt extracted.json
-
-          echo "Generated Documentation Content:"
-          cat "./.tmp/$documentation"
+          # Extract JSON block
+          json_match = re.search(r'```json\s*\n(.*?)\n```', data, re.DOTALL)
+          if json_match:
+              json_str = json_match.group(1).strip()
+              try:
+                  parsed = json.loads(json_str)
+                  
+                  # Write summary
+                  with open('summary.txt', 'w') as f:
+                      f.write(parsed['summary'])
+                  
+                  # Write file content with proper newlines
+                  file_content = parsed['file'].replace('\\\\n', '\n')
+                  with open('./.tmp/$documentation', 'w') as f:
+                      f.write(file_content)
+                  
+                  print("✓ Files extracted successfully")
+              except Exception as e:
+                  print(f"Error: {e}")
+                  print("Raw JSON preview:")
+                  print(json_str[:200])
+          else:
+              print("No JSON block found")
+          EOF
 
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
