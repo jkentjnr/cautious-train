@@ -8,18 +8,25 @@ inputs:
   prompt:
     description: 'Prompt for documentation generation'
     required: true
+  pat-token:
+    description: 'Personal Access Token for GitHub'
+    required: true
+  anthropic_api_key:
+    description: 'Anthropic API Key for Claude'
+    required: true
 
 runs:
   using: composite
   steps:
     - name: Generate Documentation with Claude
+      shell: bash
       run: |
         # Escape the prompt for JSON
         ESCAPED_PROMPT=$(printf '%s' "$PROMPT" | jq -Rs .)
 
         RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
           -H "Content-Type: application/json" \
-          -H "x-api-key: $ANTHROPIC_API_KEY" \
+          -H "x-api-key: {{ inputs.anthropic_api_key }}" \
           -H "anthropic-version: 2023-06-01" \
           -d "$(jq -n --arg prompt "$PROMPT" '{
             "model": "claude-sonnet-4-20250514",
@@ -76,12 +83,15 @@ runs:
         echo "----------------------------------------"
 
       env:
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         PROMPT: ${{ inputs.prompt }}
         PARAM_JOB_KEY: ${{ inputs.job-key }}
 
     - name: Generate Pull Request in Documentation Repository
+      shell: bash
       run: |
+        TARGET_BRANCH=$(jq -r '.docs.branch' documentation.json)
+
         cd ./.tmp
 
         # Configure git
@@ -103,9 +113,8 @@ runs:
         git push origin $BRANCH_NAME
 
         # Create Pull Request using gh CLI
-        gh auth login --with-token <<< ${{ secrets.PAT_TOKEN }}
-        gh pr create --title "$COMMIT_MESSAGE" --body "$(cat ../summary.txt)" --head $BRANCH_NAME --base ${{ inputs.target-branch }}
+        gh auth login --with-token <<< ${{ inputs.pat-token }}
+        gh pr create --title "$COMMIT_MESSAGE" --body "$(cat ../summary.txt)" --head $BRANCH_NAME --base $TARGET_BRANCH
       env:
-        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        PAT_TOKEN: ${{ inputs.pat-token }}
         PARAM_JOB_KEY: ${{ inputs.job-key }}
-        PARAM_BRANCH: ${{ inputs.target-branch }}

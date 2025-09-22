@@ -115,4 +115,5 @@ jobs:
         with:
           job-key: ${{ env.PARAM_JOB_KEY }}
           prompt: ${{ env.PROMPT }}
-          target-branch: ${{ env.PARAM_BRANCH }}
+          pat-token: ${{ secrets.PAT_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
