@@ -163,6 +163,12 @@ jobs:
 
           rm temp.json
 
+          echo "\nSummary:"
+          cat summary.txt
+          echo ""
+          echo "Documentation updated at ./.tmp/$documentation"
+          cat "./.tmp/$documentation"
+
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PROMPT: ${{ env.PROMPT }}
