@@ -130,13 +130,20 @@ jobs:
               ]
             }')")
           echo "Response received from Claude."
-          echo "Response: $RESPONSE"
+
+          echo "Claude Response:"
+          echo "$RESPONSE"
+          echo ""
 
           # Extract just what we need without complex sed
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
           # Write DATA to temp file for easier processing
           echo "$DATA" > temp_response.txt
+
+          echo "Temp Response:"
+          cat temp_response.txt
+          echo ""
 
           # Extract JSON manually using awk
           awk '/```json/,/^```$/ {if(!/```/) print}' temp_response.txt > extracted.json
