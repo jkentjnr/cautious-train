@@ -21,8 +21,15 @@ runs:
       id: p1
       shell: bash
       run: |
+        echo "----------------------------------------"
+        echo "Parameters:"
+        echo "Job Key: $PARAM_JOB_KEY"
+        echo "Prompt length: ${#PROMPT} characters"
+        echo "----------------------------------------"
         echo "Configuration:"
         cat documentation.json
+        echo "----------------------------------------"
+        echo ""
 
         echo "Generating prompt for flow documentation update..."
 
