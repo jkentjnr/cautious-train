@@ -26,7 +26,7 @@ runs:
 
         RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
           -H "Content-Type: application/json" \
-          -H "x-api-key: {{ inputs.anthropic_api_key }}" \
+          -H "x-api-key: ${{ inputs.anthropic_api_key }}" \
           -H "anthropic-version: 2023-06-01" \
           -d "$(jq -n --arg prompt "$PROMPT" '{
             "model": "claude-sonnet-4-20250514",
