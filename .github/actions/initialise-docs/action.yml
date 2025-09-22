@@ -29,10 +29,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v5
-      with:
-        fetch-depth: 0  # Full history for diff
-
     - name: Set Authentication for Github Repositories
       shell: bash
       run: git config --global url."https://${{ inputs.pat-token }}@github.com".insteadOf https://github.com

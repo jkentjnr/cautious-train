@@ -21,6 +21,10 @@ jobs:
   update-documentation-flow:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for diff
+
       - name: Initialise Documentation
         id: context
         uses: ./.github/actions/initialise-docs
