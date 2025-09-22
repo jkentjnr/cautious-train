@@ -132,27 +132,32 @@ jobs:
           echo "Response received from Claude."
           echo "Response: $RESPONSE"
 
-          # Get documentation path
-          documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
-          echo "Updating documentation file: $documentation"
-
-          # Extract the text content from the response
+          # Extract just what we need without complex sed
           DATA=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
-          # Extract JSON from code blocks
-          CLEAN_DATA=$(echo "$DATA" | sed -n '/```json/,/```/p' | sed '1d;$d')
+          # Write DATA to temp file for easier processing
+          echo "$DATA" > ../temp_response.txt
 
-          # Simple validation and extraction
-          set -e  # Exit on any error
+          # Extract JSON manually using awk
+          awk '/```json/,/^```$/ {if(!/```/) print}' ../temp_response.txt > ../extracted.json
 
-          echo "$CLEAN_DATA" | jq -r '.summary' > summary.txt
-          echo "✓ Summary extracted"
+          # Test the extracted JSON
+          if jq empty ../extracted.json 2>/dev/null; then
+              echo "✓ Valid JSON extracted"
+              
+              # Extract summary and file
+              jq -r '.summary' ../extracted.json > summary.txt
+              jq -r '.file' ../extracted.json | sed 's/\\n/\n/g' > "./.tmp/$documentation"
+              
+              echo "✓ Files created successfully"
+          else
+              echo "✗ JSON extraction failed"
+              echo "Extracted content:"
+              cat ../extracted.json
+          fi
 
-          echo "$CLEAN_DATA" | jq -r '.file' > temp_file.txt
-          # Convert escaped newlines to actual newlines
-          sed 's/\\n/\n/g' temp_file.txt > "./.tmp/$documentation"
-          rm temp_file.txt
-          echo "✓ File extracted"
+          # Cleanup
+          rm ../temp_response.txt ../extracted.json
 
           echo "Generated Documentation Content:"
           cat "./.tmp/$documentation"
