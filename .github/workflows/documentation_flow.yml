@@ -51,10 +51,33 @@ jobs:
 
       - name: Generate Prompt for Flow Documentation
         run: |
+
           # Iterate over the input array for the specific job
           jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json | while read -r file; do
               echo "Processing file: $file"
-              # Your processing logic here
+
+              # Get the existing (current) file content
+              if [ -f "$file" ]; then
+                  echo "Getting current version of: $file"
+                  current_content=$(cat "$file")
+                  echo "Current file size: $(echo "$current_content" | wc -l) lines"
+              else
+                  echo "Warning: Current file $file not found"
+                  current_content=""
+              fi
+
+              # Get the file content from the previous commit
+              if git show HEAD~1:"$file" > /dev/null 2>&1; then
+                  echo "Getting previous version of: $file"
+                  previous_content=$(git show HEAD~1:"$file")
+              else
+                  echo "Warning: $file not found in previous commit (might be a new file)"
+                  previous_content=""
+              fi
+
+              echo "Current file: $current_content"
+              echo "Previous file: $previous_content"
+
           done
         env:
           PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }} 
