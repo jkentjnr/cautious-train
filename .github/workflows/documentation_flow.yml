@@ -108,7 +108,7 @@ jobs:
 
         env:
           PROMPT: ${{ vars.PROMPT_FLOW }}
-          PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }} 
+          PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }}
 
       - name: Generate Documentation with Claude
         run: |
@@ -129,8 +129,50 @@ jobs:
                 }
               ]
             }')")
+          echo "Response received from Claude."
 
-            echo "$RESPONSE"
+          # Get documentation path
+          documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
+          echo "Updating documentation file: $documentation"
+
+          # Write file.
+          echo "$RESPONSE" | jq -r '.content[0].text' > "./.tmp/$documentation"
+          echo "Documentation updated successfully."
+
+          echo "Generated Documentation Content:"
+          cat "./.tmp/$documentation"
+
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PROMPT: ${{ env.PROMPT }}
+          PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }}
+
+      - name: Generate Pull Request in Documentation Repository
+        run: |
+          cd ./.tmp
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create a new branch
+          BRANCH_NAME="update/flow-${{ env.PARAM_JOB_KEY }}-$(date +%s)"
+          git checkout -b $BRANCH_NAME
+
+          # Stage changes
+          git add .
+
+          # Commit changes
+          COMMIT_MESSAGE="Update documentation for flow: ${{ env.PARAM_JOB_KEY }}"
+          git commit -m "$COMMIT_MESSAGE"
+
+          # Push branch
+          git push origin $BRANCH_NAME
+
+          # Create Pull Request using gh CLI
+          gh auth login --with-token <<< ${{ secrets.PAT_TOKEN }}
+          gh pr create --title "$COMMIT_MESSAGE" --body "This PR updates the documentation for the flow associated with job key: ${{ env.PARAM_JOB_KEY }}." --head $BRANCH_NAME --base ${{ env.PARAM_BRANCH }}
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PARAM_JOB_KEY: ${{ env.PARAM_JOB_KEY }}
+          PARAM_BRANCH: ${{ env.PARAM_BRANCH }}
