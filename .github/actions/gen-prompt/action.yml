@@ -69,12 +69,8 @@ runs:
         PROMPT="${PROMPT//\{\!previous\}/$previous_prompt}"
         PROMPT="${PROMPT//\{\!current\}/$current_prompt}"
 
-        echo "$PROMPT"
-
         # Get documentation path
         documentation=$(jq -r --arg key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $key) | .documentation' documentation.json)
-        echo "Documentation path: $documentation"
-
         documentation_content=$(cat "./.tmp/$documentation")
         documentation_prompt="=== [START] FILE: $documentation ==="$'\n'"$documentation_content"$'\n'"=== [END] FILE ==="$'\n'$'\n'
         PROMPT="${PROMPT//\{\!documentation\}/$documentation_prompt}"
