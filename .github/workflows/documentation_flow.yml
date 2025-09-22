@@ -118,6 +118,7 @@ jobs:
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "Content-Type: application/json" \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
             -d "$(jq -n --arg prompt "$PROMPT" '{
               "model": "claude-sonnet-4-20250514",
               "max_tokens": 1000,
