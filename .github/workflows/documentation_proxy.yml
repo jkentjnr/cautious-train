@@ -9,34 +9,17 @@ on:
       - master
       - main
 jobs:
-  deploy:
-    name: Execute Tests and Deploy
+  docs:
+    name: Documentation Proxy
 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Execute Compare
-        working-directory: .
-        run: .github/scripts/queue_changes.sh
-
-      - name: View Output
-        run: cat output.json
-
-      - name: Execute Dispatch
-        working-directory: .
-        run: |
-          unset GITHUB_TOKEN
-
-          # One-liner: write token and authenticate
-          echo "$PAT_TOKEN" | gh auth login --with-token
-          
-          # Verify
-          gh auth status
-
-          # Execute the dispatch script
-          .github/scripts/dispatch.sh
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}  # Custom PAT
+      - name: Evaluate Changes and Dispatch Documentation Updates
+        id: evaluate
+        uses: ./.github/actions/documentation-proxy
+        with:
+          pat-token: ${{ secrets.PAT_TOKEN }}

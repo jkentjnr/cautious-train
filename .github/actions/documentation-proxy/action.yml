@@ -1,0 +1,36 @@
+name: Detect and Dispatch Documentation Updates
+description: Detect changes in specified files and dispatch documentation update workflow
+
+inputs:
+  pat-token:
+    description: 'Personal Access Token for GitHub'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Execute Compare
+      shell: bash
+      working-directory: .
+      run: .github/scripts/queue_changes.sh
+
+    - name: View Output
+      shell: bash
+      run: cat output.json
+
+    - name: Execute Dispatch
+      shell: bash
+      working-directory: .
+      run: |
+        unset GITHUB_TOKEN
+
+        # One-liner: write token and authenticate
+        echo "$PAT_TOKEN" | gh auth login --with-token
+        
+        # Verify
+        gh auth status
+
+        # Execute the dispatch script
+        .github/scripts/dispatch.sh
+      env:
+        PAT_TOKEN: ${{ inputs.pat-token }}
