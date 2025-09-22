@@ -59,8 +59,8 @@ jobs:
           previous_prompt=""
           current_prompt=""
 
-          # Iterate over the input array for the specific job
-          jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json | while read -r file; do
+          # Use process substitution instead of pipe to avoid subshell
+          while read -r file; do
               echo "Processing file: $file"
 
               # Get the existing (current) file content
@@ -82,16 +82,15 @@ jobs:
                   previous_content=""
               fi
 
-              #echo "Previous file: $previous_content"
-              #echo "Current file: $current_content"
+              # Append to variables (these will now persist!)
+              previous_prompt+="<file name=\"$file\" version=\"previous\">"$'\n'"$previous_content"$'\n'"</file>"$'\n'$'\n'
+              current_prompt+="<file name=\"$file\" version=\"current\">"$'\n'"$current_content"$'\n'"</file>"$'\n'$'\n'
 
-              previous_prompt+="<file name=\"$file\" version=\"previous\">\n$previous_content\n</file>\n\n"
-              current_prompt+="<file name=\"$file\" version=\"current\">\n$current_content\n</file>\n\n"
+          done < <(jq -r --arg job_key "$PARAM_JOB_KEY" '.jobs[] | select(.key == $job_key) | .input[]' documentation.json)
 
-          done
-
-          echo "\nprevious_prompt:\n----------------------\n$previous_prompt\n----------------------\n"
-          echo "\ncurrent_prompt:\n----------------------\n$current_prompt\n----------------------\n"
+          # Now the variables will have content
+          echo -e "\nprevious_prompt:\n----------------------\n$previous_prompt\n----------------------\n"
+          echo -e "\ncurrent_prompt:\n----------------------\n$current_prompt\n----------------------\n"
 
           # Combine into final prompt
           PROMPT="${PROMPT//\${previous}/$previous_prompt}"
